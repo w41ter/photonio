@@ -95,14 +95,19 @@ async fn unlink_inner(path: &Path, flags: libc::c_int) -> Result<()> {
 pub(crate) async fn rename(oldpath: &Path, newpath: &Path) -> Result<()> {
     let oldpath = new_path_str(oldpath)?;
     let newpath = new_path_str(newpath)?;
-    let sqe = opcode::RenameAt::new(
-        types::Fd(libc::AT_FDCWD),
-        oldpath.as_c_str().as_ptr(),
-        types::Fd(libc::AT_FDCWD),
-        newpath.as_c_str().as_ptr(),
-    )
-    .build();
-    submit(sqe)?.await.map(|_| ())
+    if unsafe {
+        libc::renameat(
+            libc::AT_FDCWD,
+            oldpath.as_c_str().as_ptr(),
+            libc::AT_FDCWD,
+            newpath.as_c_str().as_ptr(),
+        )
+    } == 0
+    {
+        Ok(())
+    } else {
+        Err(Error::last_os_error())
+    }
 }
 
 /// See also `man accept.2`.
