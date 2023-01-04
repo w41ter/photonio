@@ -36,14 +36,23 @@ pub(crate) async fn close(fd: OwnedFd) -> Result<()> {
 
 /// See also `man fstat.2`.
 pub(crate) async fn fstat(fd: BorrowedFd<'_>) -> Result<libc::statx> {
-    let fd = types::Fd(fd.as_raw_fd());
+    let fd = fd.as_raw_fd();
     let path = CString::new("").unwrap();
     let mut stat = unsafe { mem::zeroed() };
-    let sqe = opcode::Statx::new(fd, path.as_ptr(), &mut stat as *mut _ as *mut _)
-        .flags(libc::AT_EMPTY_PATH)
-        .mask(libc::STATX_ALL)
-        .build();
-    submit(sqe)?.await.map(|_| stat)
+    if unsafe {
+        libc::statx(
+            fd,
+            path.as_ptr(),
+            libc::AT_EMPTY_PATH,
+            libc::STATX_ALL,
+            &mut stat as *mut _ as *mut _,
+        )
+    } == 0
+    {
+        Ok(stat)
+    } else {
+        Err(Error::last_os_error())
+    }
 }
 
 /// See also `man fsync.2`.
