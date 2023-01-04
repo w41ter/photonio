@@ -19,13 +19,11 @@ use super::worker::submit;
 /// See also `man open.2`.
 pub(crate) async fn open(path: &Path, flags: libc::c_int, mode: libc::mode_t) -> Result<OwnedFd> {
     let path = new_path_str(path)?;
-    let sqe = opcode::OpenAt::new(types::Fd(libc::AT_FDCWD), path.as_c_str().as_ptr())
-        .flags(flags | libc::O_CLOEXEC)
-        .mode(mode)
-        .build();
-    submit(sqe)?
-        .await
-        .map(|fd| unsafe { OwnedFd::from_raw_fd(fd as _) })
+    let fd = unsafe { libc::open(path.as_c_str().as_ptr(), flags | libc::O_CLOEXEC) };
+    if fd < 0 {
+        return Err(Error::last_os_error());
+    }
+    Ok(unsafe { OwnedFd::from_raw_fd(fd as _) })
 }
 
 /// See also `man close.2`.
