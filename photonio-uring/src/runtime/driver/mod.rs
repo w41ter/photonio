@@ -21,7 +21,7 @@ pub(super) struct Driver {
 
 impl Driver {
     pub(super) fn new(unpark: Unpark) -> Result<Self> {
-        let io = IoUring::new(4096)?;
+        let io = IoUring::builder().setup_sqpoll(100).build(4096)?;
         Ok(Self {
             io,
             table: OpTable::new(),
